@@ -4,8 +4,10 @@ from dotenv import load_dotenv
 from telethon.sync import TelegramClient
 from telethon.tl.types import User
 
+import csv
+
 async def main():
-    """主函数，用于连接 Telegram 并列出指定群组中我的所有发言。"""
+    """主函数，用于连接 Telegram，将指定群组中我的所有发言保存到 CSV 文件。"""
     load_dotenv()
 
     api_id = os.getenv('API_ID')
@@ -40,19 +42,28 @@ async def main():
             print(f"错误：找不到名为 '{group_name}' 的群组。请检查名称是否正确。")
             return
 
-        print(f"成功找到群组: '{group_name}'。开始查找您的发言...")
+        print(f"成功找到群组: '{group_name}'。开始查找您的发言并保存到 CSV 文件...")
 
+        csv_filename = f"{group_name.replace('/', '_')}_messages.csv"
         message_count = 0
-        print(f"\n--- 您在 '{group_name}' 的发言 ---")
-        try:
-            async for message in client.iter_messages(target_group, from_user='me'):
-                timestamp = message.date.strftime('%Y-%m-%d %H:%M:%S')
-                print(f"[{timestamp}] {message.text}")
-                message_count += 1
-        except Exception as e:
-            print(f"查找消息时发生错误: {e}")
 
-        print(f"\n--- 共找到 {message_count} 条您发送的消息 ---")
+        try:
+            with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
+                csv_writer = csv.writer(csvfile)
+                csv_writer.writerow(['timestamp', 'message_id', 'content'])
+
+                async for message in client.iter_messages(target_group, from_user='me'):
+                    timestamp = message.date.strftime('%Y-%m-%d %H:%M:%S')
+                    # 仅处理文本消息，您可以根据需要扩展
+                    content = message.text if message.text else "(非文本消息)"
+                    print(f"正在存档消息 ID: {message.id}")
+                    csv_writer.writerow([timestamp, message.id, content])
+                    message_count += 1
+            
+            print(f"\n存档完成！共保存 {message_count} 条消息到文件 '{csv_filename}'。")
+
+        except Exception as e:
+            print(f"处理消息时发生错误: {e}")
 
 
 if __name__ == "__main__":
